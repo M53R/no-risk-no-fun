@@ -120,6 +120,13 @@ export default function PlayerPage() {
     });
   }
 
+  function showRed(which) {
+    socketRef.current.emit('player_show_red', { which }, (res) => {
+      if (!res?.ok) toast(res?.error || 'تعذّر العرض', true);
+      else toast('تم عرض البطاقة للمنافسين 👁');
+    });
+  }
+
   function roundAction(action) {
     socketRef.current.emit('player_round_action', { action }, (res) => {
       if (!res?.ok) toast(res?.error || 'تعذّر تنفيذ الإجراء', true);
@@ -168,7 +175,7 @@ export default function PlayerPage() {
       )}
 
       {screen === 'game' && state && (
-        <GameScreen state={state} pick={pick} roundAction={roundAction} leaveGame={leaveGame} />
+        <GameScreen state={state} pick={pick} roundAction={roundAction} showRed={showRed} leaveGame={leaveGame} />
       )}
 
       {flash && (
@@ -223,7 +230,7 @@ function JoinScreen({ name, setName, code, setCode, onSubmit, busy }) {
 }
 
 // ============================================================
-function GameScreen({ state, pick, roundAction, leaveGame }) {
+function GameScreen({ state, pick, roundAction, showRed, leaveGame }) {
   const { room, me, players } = state;
   const others = players.filter((p) => p.id !== me.id);
 
@@ -247,14 +254,17 @@ function GameScreen({ state, pick, roundAction, leaveGame }) {
 
       <div className="row mb" style={{ justifyContent: 'space-between' }}>
         <span className={`phase-pill ${phaseLabel[1]}`}>{phaseLabel[0]}</span>
-        {room.roundNumber > 0 && <span className="badge">الجولة {room.roundNumber}</span>}
+        {room.roundNumber > 0 && <span className="badge">الجولة {room.roundNumber} من {room.maxRounds}</span>}
       </div>
 
       {/* بطاقتي */}
-      <MyPanel me={me} room={room} canAct={canAct} roundAction={roundAction} />
+      <MyPanel me={me} room={room} canAct={canAct} roundAction={roundAction} showRed={showRed} />
 
       {/* شاشة الاختيار */}
       {me.needsPick && <PickOverlay me={me} needs={me.needsPick} pick={pick} />}
+
+      {/* اختيار البطاقة الحمراء المعروضة للمنافسين */}
+      {!me.needsPick && me.needsShow && <ShowRedOverlay me={me} showRed={showRed} />}
 
       {/* بقية اللاعبين */}
       <div className="panel">
@@ -280,7 +290,7 @@ function Hearts({ n }) {
   return <span className="hearts">❤️ ×{n}</span>;
 }
 
-function MyPanel({ me, room, canAct, roundAction }) {
+function MyPanel({ me, room, canAct, roundAction, showRed }) {
   return (
     <div className="panel">
       <div className="panel__title">
@@ -327,7 +337,7 @@ function MyPanel({ me, room, canAct, roundAction }) {
             ) : (
               <div className="card card--back card--red" style={{ opacity: 0.35 }}>—</div>
             )}
-            <div className="forehead__hint">حمراء A 🔴<br />سرّية لك</div>
+            <div className="forehead__hint">حمراء A 🔴<br />{me.shownRed === 'redA' ? '👁 معروضة للمنافسين' : 'سرّية لك'}</div>
           </div>
 
           {/* الحمراء B */}
@@ -337,8 +347,17 @@ function MyPanel({ me, room, canAct, roundAction }) {
             ) : (
               <div className="card card--back card--red" style={{ opacity: 0.35 }}>—</div>
             )}
-            <div className="forehead__hint">حمراء B 🔴<br />سرّية لك</div>
+            <div className="forehead__hint">حمراء B 🔴<br />{me.shownRed === 'redB' ? '👁 معروضة للمنافسين' : 'سرّية لك'}</div>
           </div>
+        </div>
+      )}
+
+      {me.shownRed && room.phase === 'red' && (
+        <div className="center mt">
+          <button className="btn btn--xs btn--ghost"
+            onClick={() => showRed(me.shownRed === 'redA' ? 'redB' : 'redA')}>
+            🔁 تبديل البطاقة المعروضة
+          </button>
         </div>
       )}
 
@@ -376,6 +395,7 @@ function MyPanel({ me, room, canAct, roundAction }) {
 function PickOverlay({ me, needs, pick }) {
   const isBlue = needs === 'blue';
   const row = needs;
+  const count = me.deckCounts?.[needs] ?? 10;
   const titles = {
     blue: ['اختر بطاقة جبينك 🔵', 'بطاقة عمياء: لن ترى قيمتها أبداً — لكن الجميع سيراها!'],
     redA: ['اختر بطاقتك الحمراء A 🔴', 'قيمتها ستظهر لك وحدك'],
@@ -387,7 +407,7 @@ function PickOverlay({ me, needs, pick }) {
         <div className="pick-overlay__title">{titles[needs][0]}</div>
         <div className="pick-overlay__sub">{titles[needs][1]}</div>
         <div className="pick-grid">
-          {Array.from({ length: 10 }).map((_, i) => (
+          {Array.from({ length: count }).map((_, i) => (
             <button
               key={i}
               className={`card card--back ${isBlue ? 'card--blue' : 'card--red'}`}
@@ -397,7 +417,28 @@ function PickOverlay({ me, needs, pick }) {
             </button>
           ))}
         </div>
-        <p className="muted">البطاقات مخلوطة عشوائياً — اختر واحدة على حظّك 🍀</p>
+        <p className="muted">متبقي لك {count} بطاقات — كل بطاقة تختارها لا تعود! 🍀</p>
+      </div>
+    </div>
+  );
+}
+
+function ShowRedOverlay({ me, showRed }) {
+  return (
+    <div className="pick-overlay">
+      <div className="pick-overlay__box">
+        <div className="pick-overlay__title">أي بطاقة تعرضها للمنافسين؟ 👁</div>
+        <div className="pick-overlay__sub">المعروضة يراها الجميع... والأخرى تبقى سرّك. خادعهم!</div>
+        <div className="row mt" style={{ justifyContent: 'center', gap: 22 }}>
+          <button className="forehead" style={{ background: 'none', border: 'none' }} onClick={() => showRed('redA')}>
+            <span className="card card--lg card--face card--red" data-v={me.values.redA}>{me.values.redA}</span>
+            <span className="forehead__hint">عرض بطاقة A</span>
+          </button>
+          <button className="forehead" style={{ background: 'none', border: 'none' }} onClick={() => showRed('redB')}>
+            <span className="card card--lg card--face card--red" data-v={me.values.redB}>{me.values.redB}</span>
+            <span className="forehead__hint">عرض بطاقة B</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -429,18 +470,24 @@ function OtherPlayerCard({ p }) {
             : <div className="card card--sm card--back card--blue">؟</div>
         ) : <div className="card card--sm card--back card--blue" style={{ opacity: 0.3 }}>—</div>}
 
-        {/* الحمراء: تظهر فقط بعد كشف المقدم */}
-        {p.picked.redA ? (
-          p.values.redA != null
-            ? <div className="card card--sm card--face card--red flip-in">{p.values.redA}</div>
-            : <div className="card card--sm card--back card--red">✦</div>
-        ) : <div className="card card--sm card--back card--red" style={{ opacity: 0.3 }}>—</div>}
-
-        {p.picked.redB ? (
-          p.values.redB != null
-            ? <div className="card card--sm card--face card--red flip-in">{p.values.redB}</div>
-            : <div className="card card--sm card--back card--red">✦</div>
-        ) : <div className="card card--sm card--back card--red" style={{ opacity: 0.3 }}>—</div>}
+        {/* الحمراء: بعد الكشف الشامل تظهر الاثنتان — وقبله المعروضة فقط */}
+        {p.values.redA != null && p.values.redB != null ? (
+          <>
+            <div className="card card--sm card--face card--red flip-in">{p.values.redA}</div>
+            <div className="card card--sm card--face card--red flip-in">{p.values.redB}</div>
+          </>
+        ) : p.shownRed && (p.shownRed === 'redA' ? p.values.redA : p.values.redB) != null ? (
+          <div className="forehead" style={{ gap: 2 }}>
+            <div className="card card--sm card--face card--red flip-in">
+              {p.shownRed === 'redA' ? p.values.redA : p.values.redB}
+            </div>
+            <span style={{ fontSize: 10, color: 'var(--ink-dim)' }}>👁 معروضة</span>
+          </div>
+        ) : p.picked.redA || p.picked.redB ? (
+          <div className="card card--sm card--back card--red">✦</div>
+        ) : (
+          <div className="card card--sm card--back card--red" style={{ opacity: 0.3 }}>—</div>
+        )}
       </div>
       <div className="mt" style={{ minHeight: 22 }}>{statusBadge}</div>
     </div>

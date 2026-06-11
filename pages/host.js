@@ -176,6 +176,12 @@ function Dashboard({ state, logs, emit, toast, setModal, exportState, onImportCl
           <div className="roomcode"><span>رمز الغرفة</span><b>{room.code}</b></div>
           <button className="btn btn--sm" onClick={() => copy(origin + '/', 'رابط اللاعبين')}>🔗 رابط اللاعبين</button>
           <button className="btn btn--sm" onClick={() => copy(origin + '/host', 'رابط المقدم')}>🔗 رابط المقدم</button>
+          <button
+            className={`btn btn--sm ${room.showRedsToPlayers ? 'btn--green' : 'btn--red'}`}
+            title="هل تظهر البطاقة الحمراء المعروضة بشاشات اللاعبين؟"
+            onClick={() => emit('host_toggle_show_reds', { on: !room.showRedsToPlayers })}>
+            👁 الحمراء للاعبين: {room.showRedsToPlayers ? 'ظاهرة' : 'مخفية'}
+          </button>
         </div>
       </div>
 
@@ -207,11 +213,23 @@ function Dashboard({ state, logs, emit, toast, setModal, exportState, onImportCl
         </div>
       </div>
 
+      {/* لوحة العرض — مخصصة للبروجكتر: لا تكشف أي سر قبل إعلان الفائز */}
+      <div className="panel">
+        <div className="panel__title">
+          <span>🖥️ لوحة العرض</span>
+          <small>الزرقاء والمجاميع تظهر هنا بعد إعلان الفائز فقط</small>
+        </div>
+        {visible.length === 0 && <p className="muted center">لا يوجد لاعبون بعد</p>}
+        <div className="board-grid">
+          {visible.map((p) => <BoardTile key={p.id} p={p} room={room} />)}
+        </div>
+      </div>
+
       {/* التحكم بالجولة */}
       <div className="panel">
         <div className="panel__title">
           <span>التحكم بالجولة</span>
-          <span className={`phase-pill ${phaseLabel[1]}`}>{phaseLabel[0]}{room.roundNumber > 0 ? ` — جولة ${room.roundNumber}` : ''}</span>
+          <span className={`phase-pill ${phaseLabel[1]}`}>{phaseLabel[0]}{room.roundNumber > 0 ? ` — جولة ${room.roundNumber} من ${room.maxRounds}` : ''}</span>
         </div>
 
         {!room.roundActive && (
@@ -277,7 +295,8 @@ function Dashboard({ state, logs, emit, toast, setModal, exportState, onImportCl
 
         <div className="btn-row">
           <button className="btn btn--sm" disabled={!room.roundActive} onClick={() => emit('host_end_round')}>⏹️ إنهاء الجولة</button>
-          <button className="btn btn--sm" onClick={() => confirm('إعادة تعيين الجولة الحالية؟') && emit('host_reset_round')}>🔄 إعادة تعيين الجولة</button>
+          <button className="btn btn--sm" onClick={() => confirm('إعادة تعيين الجولة الحالية؟ (تعود البطاقات المختارة لأصحابها)') && emit('host_reset_round')}>🔄 إعادة تعيين الجولة</button>
+          <button className="btn btn--sm btn--blue" onClick={() => confirm('إعادة البطاقات للجميع (10 زرقاء + 20 حمراء)؟ القلوب والكؤوس تبقى كما هي.') && emit('host_reset_decks')}>🃏 إعادة البطاقات</button>
           <button className="btn btn--sm btn--red" onClick={() => confirm('سيتم تصفير القلوب والكؤوس وكل الجولات. متأكد؟') && emit('host_reset_game')}>🗑️ إعادة تعيين اللعبة</button>
         </div>
       </div>
@@ -290,7 +309,7 @@ function Dashboard({ state, logs, emit, toast, setModal, exportState, onImportCl
             <thead>
               <tr>
                 <th>اللاعب</th><th>المجموعة</th><th>❤️ القلوب</th><th>🏆</th>
-                <th>🔵</th><th>🔴A</th><th>🔴B</th><th>المجموع</th><th>الموقف</th><th>إجراءات</th>
+                <th>🔵</th><th>🔴A</th><th>🔴B</th><th>المجموع</th><th>🃏 متبقي</th><th>الموقف</th><th>إجراءات</th>
               </tr>
             </thead>
             <tbody>
@@ -354,6 +373,58 @@ function Dashboard({ state, logs, emit, toast, setModal, exportState, onImportCl
 }
 
 // ============================================================
+// مستطيل اللاعب في لوحة العرض: اسم، قلوب، كؤوس، البطاقة الحمراء المعروضة، وموقفه
+function BoardTile({ p, room }) {
+  const heartsStr = p.hearts <= 6 ? ('❤️'.repeat(Math.max(0, p.hearts)) || '🖤') : `❤️ ×${p.hearts}`;
+  const results = room.phase === 'results';
+  const action =
+    p.status === 'eliminated' ? <span className="badge badge--red">☠️ مُقصى</span> :
+    p.roundAction === 'challenge' ? <span className="badge badge--red">🔥 متحدٍّ</span> :
+    p.roundAction === 'withdraw' ? <span className="badge badge--green">🛡️ منسحب</span> :
+    p.inRound ? <span className="badge">⏳ يفكّر...</span> :
+    <span className="badge">خارج الجولة</span>;
+
+  return (
+    <div className={`tile ${p.isWinner ? 'pcard--winner' : ''} ${p.status === 'eliminated' ? 'pcard--eliminated' : ''} ${room.currentTurn === p.id ? 'pcard--turn' : ''}`}>
+      <div className="tile__name">{p.name} {p.isWinner && '👑'}</div>
+      <div className="tile__meta">
+        <span>{heartsStr}</span>
+        <span className="cups">🏆 {p.cups}</span>
+      </div>
+      <div className="tile__cards">
+        {results && p.values.blue != null && (
+          <div className="forehead" style={{ gap: 2 }}>
+            <div className="card card--sm card--face card--blue flip-in">{p.values.blue}</div>
+            <span className="tile__cardlabel">الجبين</span>
+          </div>
+        )}
+        <div className="forehead" style={{ gap: 2 }}>
+          {p.shownRedValue != null ? (
+            <div className="card card--face card--red flip-in" data-v={p.shownRedValue}>{p.shownRedValue}</div>
+          ) : p.picked.redA || p.picked.redB ? (
+            <div className="card card--back card--red">؟</div>
+          ) : (
+            <div className="card card--back card--red" style={{ opacity: 0.3 }}>—</div>
+          )}
+          <span className="tile__cardlabel">{p.shownRedValue != null ? '👁 المعروضة' : 'الحمراء'}</span>
+        </div>
+        {results && p.values.redA != null && p.values.redB != null && (
+          <div className="forehead" style={{ gap: 2 }}>
+            <div className="card card--sm card--face card--red flip-in">
+              {p.shownRed === 'redA' ? p.values.redB : p.values.redA}
+            </div>
+            <span className="tile__cardlabel">المخفية</span>
+          </div>
+        )}
+      </div>
+      {results && p.total != null && (
+        <div className="tile__total">المجموع: <b>{p.total}</b></div>
+      )}
+      <div className="mt">{action}</div>
+    </div>
+  );
+}
+
 function PlayerRow({ p, room, emit, setModal }) {
   const statusBadge =
     p.status === 'eliminated' ? <span className="badge badge--red">مُقصى</span> :
@@ -363,7 +434,7 @@ function PlayerRow({ p, room, emit, setModal }) {
     <span className="badge">نشط</span>;
 
   const cardCell = (picked, val) =>
-    !picked ? <span className="muted">—</span> : <b className="num">{val ?? '✔'}</b>;
+    !picked ? <span className="muted">—</span> : val != null ? <b className="num">{val}</b> : <span title="مخفية — تُكشف بعد إعلان الفائز">🔒</span>;
 
   return (
     <tr className={p.isWinner ? 'row--winner' : ''}>
@@ -390,7 +461,8 @@ function PlayerRow({ p, room, emit, setModal }) {
       <td>{cardCell(p.picked.blue, p.values.blue)}</td>
       <td>{cardCell(p.picked.redA, p.values.redA)}</td>
       <td>{cardCell(p.picked.redB, p.values.redB)}</td>
-      <td><b className="num" style={{ color: 'var(--gold)' }}>{p.total}</b></td>
+      <td>{p.total != null ? <b className="num" style={{ color: 'var(--gold)' }}>{p.total}</b> : <span title="يظهر بعد الكشف">🔒</span>}</td>
+      <td><span className="muted">{p.deckCounts ? `${p.deckCounts.blue}/${p.deckCounts.redA}/${p.deckCounts.redB}` : '—'}</span></td>
       <td>{statusBadge}</td>
       <td>
         <span className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
@@ -545,7 +617,7 @@ function RevealPlayerModal({ close, emit, state }) {
         </div>
         {p && (
           <p className="muted mb">
-            قيم {p.name}: 🔵 {p.values.blue ?? '—'} · 🔴A {p.values.redA ?? '—'} · 🔴B {p.values.redB ?? '—'} · المجموع {p.total}
+            قيم {p.name} (المخفية تظهر 🔒): 🔵 {p.picked.blue ? (p.values.blue ?? '🔒') : '—'} · 🔴A {p.picked.redA ? (p.values.redA ?? '🔒') : '—'} · 🔴B {p.picked.redB ? (p.values.redB ?? '🔒') : '—'} · المجموع {p.total ?? '🔒'}
           </p>
         )}
         <div className="btn-row">

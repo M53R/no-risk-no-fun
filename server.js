@@ -77,15 +77,17 @@ app.prepare().then(() => {
       };
     }
 
-    socket.on('host_start_round', hostAction((r, { group }) => { G.startRound(r, group || null); }));
+    socket.on('host_start_round', hostAction((r, { group }) => G.startRound(r, group || null)));
     socket.on('host_end_round', hostAction((r) => { G.endRound(r); }));
     socket.on('host_reset_round', hostAction((r) => { G.resetRound(r); }));
     socket.on('host_reset_game', hostAction((r) => { G.resetGame(r); }));
+    socket.on('host_reset_decks', hostAction((r) => G.resetDecks(r)));
+    socket.on('host_toggle_show_reds', hostAction((r, { on }) => G.setShowReds(r, on)));
     socket.on('host_set_turn', hostAction((r, { playerId }) => G.setTurn(r, playerId)));
     socket.on('host_clear_turn', hostAction((r) => { r.currentTurn = null; }));
     socket.on('host_start_red_phase', hostAction((r) => G.startRedPhase(r)));
-    socket.on('host_reveal_blue_all', hostAction((r) => { G.revealBlueAll(r); }));
-    socket.on('host_reveal_red_all', hostAction((r) => { G.revealRedAll(r); }));
+    socket.on('host_reveal_blue_all', hostAction((r) => G.revealBlueAll(r)));
+    socket.on('host_reveal_red_all', hostAction((r) => G.revealRedAll(r)));
     socket.on('host_reveal_player', hostAction((r, { playerId, which }) => G.revealPlayer(r, playerId, which || {})));
     socket.on('host_calc_winner', hostAction((r) => G.calculateWinner(r)));
     socket.on('host_reveal_and_winner', hostAction((r) => G.revealAllAndWinner(r)));
@@ -149,6 +151,7 @@ app.prepare().then(() => {
 
     socket.on('player_pick', playerAction((r, p, { row, index }) => G.pickCard(r, p, row, index)));
     socket.on('player_round_action', playerAction((r, p, { action }) => G.setRoundAction(r, p, action)));
+    socket.on('player_show_red', playerAction((r, p, { which }) => G.setShownRed(r, p, which)));
 
     socket.on('disconnect', () => {
       const r = room();

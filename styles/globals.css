@@ -323,3 +323,16 @@ table.htable { width: 100%; border-collapse: collapse; font-size: 13px; min-widt
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---------- لوحة العرض (مستطيلات المشاركين) ---------- */
+.board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.tile {
+  background: var(--felt-900); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 10px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.tile__name { font-family: 'Changa'; font-weight: 800; font-size: 18px; }
+.tile__meta { display: flex; gap: 12px; font-size: 14px; }
+.tile__cards { display: flex; gap: 10px; align-items: flex-end; justify-content: center; min-height: 112px; }
+.tile__cardlabel { font-size: 10px; color: var(--ink-dim); }
+.tile__total { font-family: 'Changa'; color: var(--gold); font-size: 15px; }
