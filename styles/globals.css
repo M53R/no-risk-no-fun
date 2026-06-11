@@ -336,3 +336,12 @@ table.htable { width: 100%; border-collapse: collapse; font-size: 13px; min-widt
 .tile__cards { display: flex; gap: 10px; align-items: flex-end; justify-content: center; min-height: 112px; }
 .tile__cardlabel { font-size: 10px; color: var(--ink-dim); }
 .tile__total { font-family: 'Changa'; color: var(--gold); font-size: 15px; }
+
+/* كشف البطاقة المعروضة على شاشة المقدم */
+.shown-reveal { animation: shownReveal 1.6s cubic-bezier(0.2, 0.8, 0.3, 1.2) both; }
+@keyframes shownReveal {
+  0% { transform: rotateY(180deg) scale(0.4); opacity: 0; box-shadow: 0 0 0 0 rgba(232,182,76,0); }
+  45% { transform: rotateY(0deg) scale(1.35); opacity: 1; box-shadow: 0 0 34px 10px rgba(232,182,76,0.65); }
+  70% { transform: scale(1.18); box-shadow: 0 0 26px 7px rgba(226,59,78,0.5); }
+  100% { transform: scale(1); box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+}

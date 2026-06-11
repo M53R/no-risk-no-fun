@@ -128,9 +128,11 @@ export default function PlayerPage() {
   }
 
   function roundAction(action) {
+    const label = action === 'challenge' ? 'التحدّي 🔥' : 'الانسحاب الآمن 🛡️';
+    if (!confirm(`تأكيد ${label}؟\nلا يمكنك تغيير قرارك بعد التأكيد — فقط المقدم يستطيع إلغاءه.`)) return;
     socketRef.current.emit('player_round_action', { action }, (res) => {
       if (!res?.ok) toast(res?.error || 'تعذّر تنفيذ الإجراء', true);
-      else toast(action === 'challenge' ? 'اخترت التحدّي 🔥' : 'انسحبت من الجولة بأمان');
+      else toast(action === 'challenge' ? 'تم تأكيد التحدّي 🔥' : 'تم تأكيد الانسحاب الآمن 🛡️');
     });
   }
 
@@ -205,7 +207,7 @@ function JoinScreen({ name, setName, code, setCode, onSubmit, busy }) {
           <div className="card card--sm card--back card--red">✦</div>
         </div>
         <div className="hero__logo"><span className="l1">No Risk</span> <span className="l2">No Fun</span></div>
-        <div className="hero__tag">بطاقتك على جبينك... والجميع يراها إلا أنت 👀</div>
+        <div className="hero__tag">بطاقتك الزرقاء... الجميع يراها إلا أنت 👀</div>
       </div>
 
       <div className="panel">
@@ -269,8 +271,8 @@ function GameScreen({ state, pick, roundAction, showRed, leaveGame }) {
       {/* بقية اللاعبين */}
       <div className="panel">
         <div className="panel__title">
-          بطاقات اللاعبين على جباههم
-          <small>أنت تراهم... وهم يرونك</small>
+          بطاقات المنافسين
+          <small>الزرقاء تنكشف عندما يقرر المقدم</small>
         </div>
         {others.length === 0 && <p className="muted center">لا يوجد لاعبون آخرون بعد</p>}
         <div className="players-grid">
@@ -311,22 +313,16 @@ function MyPanel({ me, room, canAct, roundAction, showRed }) {
 
       {(me.inRound || room.phase === 'results') && (
         <div className="row" style={{ justifyContent: 'center', gap: 18, alignItems: 'flex-end' }}>
-          {/* بطاقة الجبين */}
+          {/* بطاقتي الزرقاء — لا تظهر لصاحبها أبداً */}
           <div className="forehead">
             {me.picked.blue ? (
-              me.values.blue != null ? (
-                <div className="card card--lg card--face card--blue flip-in" data-v={me.values.blue}>{me.values.blue}</div>
-              ) : (
-                <div className="card card--lg card--back card--blue">؟</div>
-              )
+              <div className="card card--lg card--back card--blue">؟</div>
             ) : (
               <div className="card card--lg card--back card--blue" style={{ opacity: 0.35 }}>—</div>
             )}
             <div className="forehead__hint">
-              بطاقة الجبين 🔵<br />
-              {me.picked.blue
-                ? me.values.blue != null ? 'تم كشفها!' : 'الجميع يراها إلا أنت'
-                : 'لم تُختَر بعد'}
+              البطاقة الزرقاء 🔵<br />
+              {me.picked.blue ? 'يراها الجميع إلا أنت!' : 'لم تُختَر بعد'}
             </div>
           </div>
 
@@ -352,36 +348,32 @@ function MyPanel({ me, room, canAct, roundAction, showRed }) {
         </div>
       )}
 
-      {me.shownRed && room.phase === 'red' && (
-        <div className="center mt">
-          <button className="btn btn--xs btn--ghost"
-            onClick={() => showRed(me.shownRed === 'redA' ? 'redB' : 'redA')}>
-            🔁 تبديل البطاقة المعروضة
-          </button>
-        </div>
-      )}
-
       {/* إجراءات الجولة */}
       {canAct && (
         <>
           <div className="divider" />
           <p className="muted mb center">
-            {me.roundAction === 'challenge' && '🔥 أنت متحدٍّ في هذه الجولة'}
-            {me.roundAction === 'withdraw' && '🛡️ انسحبت بأمان — لن تخسر قلباً ولن تفوز'}
-            {!me.roundAction && 'قرّر موقفك: تتحدّى أم تنسحب بأمان؟'}
+            {me.roundAction === 'challenge' && '🔥 أنت متحدٍّ في هذه الجولة (مؤكد)'}
+            {me.roundAction === 'withdraw' && '🛡️ انسحبت بأمان — لن تخسر قلباً ولن تفوز (مؤكد)'}
+            {!me.roundAction && 'قرّر موقفك: تتحدّى أم تنسحب بأمان؟ القرار نهائي بعد التأكيد.'}
           </p>
           <div className="btn-row">
             <button
               className={`btn ${me.roundAction === 'challenge' ? 'btn--red' : ''}`}
+              disabled={me.roundAction != null}
               onClick={() => roundAction('challenge')}>
               🔥 تحدّي
             </button>
             <button
               className={`btn ${me.roundAction === 'withdraw' ? 'btn--green' : ''}`}
+              disabled={me.roundAction != null}
               onClick={() => roundAction('withdraw')}>
               🛡️ انسحاب آمن
             </button>
           </div>
+          {me.roundAction != null && (
+            <p className="muted center mt" style={{ fontSize: 12 }}>قرارك مؤكد — التغيير عن طريق المقدم فقط</p>
+          )}
         </>
       )}
 
@@ -397,7 +389,7 @@ function PickOverlay({ me, needs, pick }) {
   const row = needs;
   const count = me.deckCounts?.[needs] ?? 10;
   const titles = {
-    blue: ['اختر بطاقة جبينك 🔵', 'بطاقة عمياء: لن ترى قيمتها أبداً — لكن الجميع سيراها!'],
+    blue: ['اختر بطاقتك الزرقاء 🔵', 'بطاقة عمياء: لن ترى قيمتها أبداً — لكن الجميع سيراها!'],
     redA: ['اختر بطاقتك الحمراء A 🔴', 'قيمتها ستظهر لك وحدك'],
     redB: ['الآن بطاقتك الحمراء B 🔴', 'قيمتها ستظهر لك وحدك'],
   };
