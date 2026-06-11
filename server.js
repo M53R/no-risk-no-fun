@@ -83,6 +83,7 @@ app.prepare().then(() => {
     socket.on('host_reset_game', hostAction((r) => { G.resetGame(r); }));
     socket.on('host_reset_decks', hostAction((r) => G.resetDecks(r)));
     socket.on('host_toggle_show_reds', hostAction((r, { on }) => G.setShowReds(r, on)));
+    socket.on('host_set_name', hostAction((r, { name }) => G.setHostName(r, name)));
     socket.on('host_set_turn', hostAction((r, { playerId }) => G.setTurn(r, playerId)));
     socket.on('host_clear_turn', hostAction((r) => { r.currentTurn = null; }));
     socket.on('host_start_red_phase', hostAction((r) => G.startRedPhase(r)));

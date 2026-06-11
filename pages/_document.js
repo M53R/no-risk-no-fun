@@ -5,6 +5,8 @@ export default function Document() {
     <Html lang="ar" dir="rtl">
       <Head>
         <meta name="theme-color" content="#101820" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

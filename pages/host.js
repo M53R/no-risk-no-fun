@@ -1,6 +1,7 @@
 // pages/host.js — لوحة تحكم المقدم
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import Splash, { useSplash } from '../components/Splash';
 
 const LS_KEY = 'nrnf_host_session';
 
@@ -14,6 +15,30 @@ export default function HostPage() {
   const [toasts, setToasts] = useState([]);
   const [modal, setModal] = useState(null); // {type, player?}
   const fileRef = useRef(null);
+  const splash = useSplash();
+  const splashHeld = useRef(false);
+  const prevRoundRef = useRef(undefined);
+
+  // انترو الشعار مع بداية كل جولة
+  useEffect(() => {
+    if (!state) return;
+    const rn = state.room.roundActive ? state.room.roundNumber : 0;
+    if (prevRoundRef.current !== undefined && rn > 0 && rn !== prevRoundRef.current && !splashHeld.current) splash.play();
+    prevRoundRef.current = rn;
+  }, [state, splash]);
+
+  // F2: تثبيت الشعار على الشاشة — وضغطة ثانية تخفيه
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        if (splashHeld.current) { splash.hide(); splashHeld.current = false; }
+        else { splash.hold(); splashHeld.current = true; }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [splash]);
 
   const toast = useCallback((msg, err = false) => {
     const id = Date.now() + Math.random();
@@ -102,7 +127,7 @@ export default function HostPage() {
       {screen === 'landing' && (
         <div className="page--narrow" style={{ margin: '0 auto' }}>
           <div className="hero">
-            <div className="hero__logo"><span className="l1">No Risk</span> <span className="l2">No Fun</span></div>
+            <img src="/logo.png" alt="No Risk No Fun" className="hero__img" />
             <div className="hero__tag">لوحة تحكم المقدم 🎛️</div>
           </div>
           <div className="panel">
@@ -128,6 +153,8 @@ export default function HostPage() {
 
       <input ref={fileRef} type="file" accept="application/json" hidden
         onChange={(e) => { const f = e.target.files?.[0]; if (f) importState(f); e.target.value = ''; }} />
+
+      <Splash visible={splash.visible} leaving={splash.leaving} byName={state?.room?.hostName} />
 
       {modal && <Modal modal={modal} close={() => setModal(null)} emit={emit} state={state} />}
 
@@ -191,13 +218,17 @@ function Dashboard({ state, logs, emit, toast, setModal, exportState, onImportCl
       {/* الشريط العلوي */}
       <div className="topbar">
         <div className="brand">
-          <span className="brand__title">No Risk No Fun</span>
+          <img src="/logo.png" alt="No Risk No Fun" className="brand__logo" />
           <span className="brand__sub">لوحة المقدم</span>
         </div>
         <div className="row">
           <div className="roomcode"><span>رمز الغرفة</span><b>{room.code}</b></div>
           <button className="btn btn--sm" onClick={() => copy(origin + '/', 'رابط اللاعبين')}>🔗 رابط اللاعبين</button>
           <button className="btn btn--sm" onClick={() => copy(origin + '/host', 'رابط المقدم')}>🔗 رابط المقدم</button>
+          <button className="btn btn--sm" title="يظهر تحت الشعار في الانترو"
+            onClick={() => setModal({ type: 'hostName' })}>
+            👤 {room.hostName ? room.hostName : 'اسم المقدم'}
+          </button>
           <button
             className={`btn btn--sm ${room.showRedsToPlayers ? 'btn--green' : 'btn--red'}`}
             title="هل تظهر البطاقة الحمراء المعروضة بشاشات اللاعبين؟"
@@ -406,7 +437,7 @@ function Dashboard({ state, logs, emit, toast, setModal, exportState, onImportCl
       </div>
 
       <p className="center" style={{ fontSize: 11.5, color: 'var(--ink-dim)', padding: '4px 0 10px' }}>
-        اختصارات المقدم: <b>F5</b> إعلان الجولة (كشف كل البطاقات واحتساب الفائز) · <b>F8</b> كشف بطاقات المرحلة الحالية لجميع اللاعبين · <b>F9</b> إلغاء آخر قرار تحدٍّ/انسحاب مؤكد
+        اختصارات المقدم: <b>F2</b> تثبيت شعار اللعبة على الشاشة (وضغطة ثانية لإخفائه) · <b>F5</b> إعلان الجولة (كشف كل البطاقات واحتساب الفائز) · <b>F8</b> كشف بطاقات المرحلة الحالية لجميع اللاعبين · <b>F9</b> إلغاء آخر قرار تحدٍّ/انسحاب مؤكد
       </p>
     </div>
   );
@@ -593,9 +624,33 @@ function GroupsPanel({ room, players, emit }) {
 
 // ============================================================
 function Modal({ modal, close, emit, state }) {
+  if (modal.type === 'hostName') return <HostNameModal close={close} emit={emit} state={state} />;
   if (modal.type === 'editPlayer') return <EditPlayerModal modal={modal} close={close} emit={emit} state={state} />;
   if (modal.type === 'revealPlayer') return <RevealPlayerModal close={close} emit={emit} state={state} />;
   return null;
+}
+
+function HostNameModal({ close, emit, state }) {
+  const [name, setName] = useState(state.room.hostName || '');
+  const save = () => { emit('host_set_name', { name }); close(); };
+  return (
+    <div className="modal-back" onClick={close}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>👤 اسم المقدم</h3>
+        <p className="muted mb">يظهر تحت الشعار في الانترو: «مع {name.trim() || '...'}» — اتركه فارغاً ليظهر الشعار وحده.</p>
+        <div className="field">
+          <input className="input" value={name} maxLength={30} autoFocus
+            placeholder="مثال: محمد"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && save()} />
+        </div>
+        <div className="btn-row">
+          <button className="btn btn--gold" onClick={save}>حفظ</button>
+          <button className="btn btn--ghost" onClick={close}>إلغاء</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EditPlayerModal({ modal, close, emit, state }) {

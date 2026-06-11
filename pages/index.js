@@ -1,6 +1,7 @@
 // pages/index.js — واجهة اللاعب
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import Splash, { useSplash } from '../components/Splash';
 
 const LS_KEY = 'nrnf_player_session';
 
@@ -15,6 +16,16 @@ export default function PlayerPage() {
   const [toasts, setToasts] = useState([]);
   const [flash, setFlash] = useState(null); // {type, emoji, text}
   const prevRef = useRef({ hearts: null, cups: null, status: null });
+  const splash = useSplash();
+  const prevRoundRef = useRef(undefined);
+
+  // انترو الشعار مع بداية كل جولة
+  useEffect(() => {
+    if (!state) return;
+    const rn = state.room.roundActive ? state.room.roundNumber : 0;
+    if (prevRoundRef.current !== undefined && rn > 0 && rn !== prevRoundRef.current) splash.play();
+    prevRoundRef.current = rn;
+  }, [state, splash]);
 
   const toast = useCallback((msg, err = false) => {
     const id = Date.now() + Math.random();
@@ -128,8 +139,6 @@ export default function PlayerPage() {
   }
 
   function roundAction(action) {
-    const label = action === 'challenge' ? 'التحدّي 🔥' : 'الانسحاب الآمن 🛡️';
-    if (!confirm(`تأكيد ${label}؟\nلا يمكنك تغيير قرارك بعد التأكيد — فقط المقدم يستطيع إلغاءه.`)) return;
     socketRef.current.emit('player_round_action', { action }, (res) => {
       if (!res?.ok) toast(res?.error || 'تعذّر تنفيذ الإجراء', true);
       else toast(action === 'challenge' ? 'تم تأكيد التحدّي 🔥' : 'تم تأكيد الانسحاب الآمن 🛡️');
@@ -157,7 +166,7 @@ export default function PlayerPage() {
 
       {screen === 'pending' && (
         <div className="waiting">
-          <div className="hero__logo"><span className="l1">No Risk</span> <span className="l2">No Fun</span></div>
+          <img src="/logo.png" alt="No Risk No Fun" className="hero__img" />
           <div className="spinner" />
           <h2>بانتظار موافقة المقدم...</h2>
           <p className="muted">تم إرسال طلبك. ابقَ في هذه الصفحة وسيتم إدخالك فور الموافقة.</p>
@@ -180,6 +189,8 @@ export default function PlayerPage() {
         <GameScreen state={state} pick={pick} roundAction={roundAction} showRed={showRed} leaveGame={leaveGame} />
       )}
 
+      <Splash visible={splash.visible} leaving={splash.leaving} byName={state?.room?.hostName} />
+
       {flash && (
         <div className={`flash flash--${flash.type}`}>
           <div className="flash__emoji">{flash.emoji}</div>
@@ -201,12 +212,7 @@ function JoinScreen({ name, setName, code, setCode, onSubmit, busy }) {
   return (
     <div>
       <div className="hero">
-        <div className="hero__cards">
-          <div className="card card--sm card--back card--blue">✦</div>
-          <div className="card card--sm card--face card--blue" data-v="؟">؟</div>
-          <div className="card card--sm card--back card--red">✦</div>
-        </div>
-        <div className="hero__logo"><span className="l1">No Risk</span> <span className="l2">No Fun</span></div>
+        <img src="/logo.png" alt="No Risk No Fun" className="hero__img" />
         <div className="hero__tag">بطاقتك الزرقاء... الجميع يراها إلا أنت 👀</div>
       </div>
 
@@ -249,7 +255,7 @@ function GameScreen({ state, pick, roundAction, showRed, leaveGame }) {
     <div>
       <div className="topbar">
         <div className="brand">
-          <span className="brand__title">No Risk No Fun</span>
+          <img src="/logo.png" alt="No Risk No Fun" className="brand__logo" />
         </div>
         <div className="roomcode"><span>الغرفة</span><b>{room.code}</b></div>
       </div>
@@ -293,6 +299,8 @@ function Hearts({ n }) {
 }
 
 function MyPanel({ me, room, canAct, roundAction, showRed }) {
+  const [pendAct, setPendAct] = useState(null); // قرار بانتظار التأكيد
+  useEffect(() => { setPendAct(null); }, [room.roundNumber, room.phase]);
   return (
     <div className="panel">
       <div className="panel__title">
@@ -352,27 +360,36 @@ function MyPanel({ me, room, canAct, roundAction, showRed }) {
       {canAct && (
         <>
           <div className="divider" />
-          <p className="muted mb center">
-            {me.roundAction === 'challenge' && '🔥 أنت متحدٍّ في هذه الجولة (مؤكد)'}
-            {me.roundAction === 'withdraw' && '🛡️ انسحبت بأمان — لن تخسر قلباً ولن تفوز (مؤكد)'}
-            {!me.roundAction && 'قرّر موقفك: تتحدّى أم تنسحب بأمان؟ القرار نهائي بعد التأكيد.'}
-          </p>
-          <div className="btn-row">
-            <button
-              className={`btn ${me.roundAction === 'challenge' ? 'btn--red' : ''}`}
-              disabled={me.roundAction != null}
-              onClick={() => roundAction('challenge')}>
-              🔥 تحدّي
-            </button>
-            <button
-              className={`btn ${me.roundAction === 'withdraw' ? 'btn--green' : ''}`}
-              disabled={me.roundAction != null}
-              onClick={() => roundAction('withdraw')}>
-              🛡️ انسحاب آمن
-            </button>
-          </div>
-          {me.roundAction != null && (
-            <p className="muted center mt" style={{ fontSize: 12 }}>قرارك مؤكد — التغيير عن طريق المقدم فقط</p>
+          {me.roundAction != null ? (
+            <>
+              <p className="muted mb center">
+                {me.roundAction === 'challenge' ? '🔥 أنت متحدٍّ في هذه الجولة (مؤكد)' : '🛡️ انسحبت بأمان — لن تخسر قلباً ولن تفوز (مؤكد)'}
+              </p>
+              <p className="muted center" style={{ fontSize: 12 }}>قرارك مؤكد — التغيير عن طريق المقدم فقط</p>
+            </>
+          ) : pendAct ? (
+            <div className="confirm-box">
+              <div className="confirm-box__q">
+                {pendAct === 'challenge' ? 'هل تريد التحدّي؟ 🔥' : 'هل تريد الانسحاب الآمن؟ 🛡️'}
+              </div>
+              <p className="muted mb" style={{ fontSize: 12 }}>القرار نهائي — لا يلغيه إلا المقدم</p>
+              <div className="btn-row">
+                <button
+                  className={`btn ${pendAct === 'challenge' ? 'btn--red' : 'btn--green'}`}
+                  onClick={() => { roundAction(pendAct); setPendAct(null); }}>
+                  تأكيد ✔
+                </button>
+                <button className="btn btn--ghost" onClick={() => setPendAct(null)}>إلغاء</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="muted mb center">قرّر موقفك: تتحدّى أم تنسحب بأمان؟</p>
+              <div className="btn-row">
+                <button className="btn" onClick={() => setPendAct('challenge')}>🔥 تحدّي</button>
+                <button className="btn" onClick={() => setPendAct('withdraw')}>🛡️ انسحاب آمن</button>
+              </div>
+            </>
           )}
         </>
       )}

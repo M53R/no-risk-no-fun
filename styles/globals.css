@@ -345,3 +345,34 @@ table.htable { width: 100%; border-collapse: collapse; font-size: 13px; min-widt
   70% { transform: scale(1.18); box-shadow: 0 0 26px 7px rgba(226,59,78,0.5); }
   100% { transform: scale(1); box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
 }
+
+/* ---------- انترو الشعار ---------- */
+.splash { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.splash__bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(900px 500px at 50% 28%, rgba(59, 130, 246, 0.14), transparent 60%),
+    radial-gradient(700px 420px at 50% 80%, rgba(232, 182, 76, 0.08), transparent 60%),
+    var(--felt-900);
+  transform: translateY(100%);
+  animation: curtainUp 0.5s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+}
+.splash__content { position: relative; text-align: center; opacity: 0; animation: logoPop 1s 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.25) forwards; padding: 0 20px; }
+.splash__logo { width: min(82vw, 540px); height: auto; filter: drop-shadow(0 12px 44px rgba(0, 0, 0, 0.65)); }
+.splash__by { font-family: 'Changa'; font-size: 24px; font-weight: 700; color: var(--gold); margin-top: 10px; opacity: 0; animation: byIn 0.6s 1.05s ease forwards; }
+.splash--leaving { animation: splashOut 0.5s ease forwards; }
+@keyframes curtainUp { to { transform: translateY(0); } }
+@keyframes logoPop { 0% { opacity: 0; transform: scale(0.68); } 62% { opacity: 1; transform: scale(1.09); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes byIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes splashOut { to { opacity: 0; transform: translateY(-4%); } }
+
+/* الشعار في الشريط العلوي وشاشة الدخول */
+.brand__logo { height: 46px; width: auto; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
+.hero__img { width: min(76vw, 380px); height: auto; margin: 0 auto 4px; display: block; filter: drop-shadow(0 8px 30px rgba(0,0,0,0.55)); }
+
+/* تأكيد القرار (تحدّي/انسحاب) */
+.confirm-box {
+  background: var(--felt-900); border: 1px solid var(--gold); border-radius: 14px;
+  padding: 16px; text-align: center; animation: toastIn 0.25s ease both;
+}
+.confirm-box__q { font-family: 'Changa'; font-size: 20px; font-weight: 800; margin-bottom: 12px; }
