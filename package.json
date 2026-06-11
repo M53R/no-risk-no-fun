@@ -1,0 +1,22 @@
+{
+  "name": "no-risk-no-fun",
+  "version": "1.0.0",
+  "description": "No Risk No Fun - لعبة جماعية تفاعلية يتحكم بها المقدم",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

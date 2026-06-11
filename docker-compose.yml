@@ -1,0 +1,13 @@
+services:
+  game:
+    build: .
+    container_name: no-risk-no-fun
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data   # قاعدة البيانات تبقى محفوظة خارج الحاوية
